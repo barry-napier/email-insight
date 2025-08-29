@@ -7,10 +7,15 @@ Production: https://api.email-insight.com/v1
 ```
 
 ## Authentication
-All endpoints except `/auth/*` require JWT token in Authorization header:
+All endpoints except `/auth/*` and `/health` require JWT token in Authorization header:
 ```
 Authorization: Bearer <jwt_token>
 ```
+
+**Current Implementation Status:**
+- JWT middleware implemented with token blacklisting
+- Bearer token validation with comprehensive error handling
+- Authentication stubs ready for Phase 2 OAuth2 integration
 
 ## API Versioning
 - Current version: **v1**
@@ -27,25 +32,31 @@ Authorization: Bearer <jwt_token>
 X-Request-ID: <uuid> (optional, for tracing)
 ```
 
-### Response Format
+### Response Format (✅ Implemented)
 All responses follow this standard structure:
 ```typescript
-interface APIResponse<T> {
-  success: boolean
-  data?: T
-  error?: {
+// Success responses
+interface SuccessResponse<T> {
+  success: true
+  data: T
+  message?: string
+}
+
+// Error responses
+interface ErrorResponse {
+  success: false
+  error: {
     code: string
     message: string
-    details?: any
-    requestId?: string
-  }
-  meta?: {
-    timestamp: string
-    version: string
-    requestId: string
+    severity: 'low' | 'medium' | 'high' | 'critical'
   }
 }
 ```
+
+**Implementation Details:**
+- Consistent response formatting via middleware
+- Error severity classification for frontend handling
+- Request ID tracking for audit trails
 
 ### Pagination Standard
 ```typescript
@@ -77,9 +88,63 @@ interface PaginatedResponse<T> {
 
 ## Endpoints
 
-### Authentication
+### Health & System (✅ Implemented)
 
-#### POST `/auth/google`
+#### GET `/api/health`
+System health check endpoint
+```typescript
+Response: SuccessResponse<{
+  status: 'healthy' | 'unhealthy'
+  timestamp: string
+  version: string
+  environment: string
+  uptime: number
+  database: {
+    status: 'connected' | 'disconnected'
+    latency: number
+    error?: string
+  }
+  services: {
+    api: {
+      status: 'operational' | 'degraded' | 'down'
+      latency: number
+    }
+    gmail: {
+      status: 'operational' | 'down'  // TODO: Phase 2
+    }
+  }
+}>
+```
+
+#### GET `/api/health/detailed`
+Detailed system health with memory usage
+```typescript
+Response: SuccessResponse<{
+  ...healthStatus
+  memory: {
+    used: number    // MB
+    total: number   // MB
+    external: number // MB
+    rss: number     // MB
+  }
+  responseTime: number
+}>
+```
+
+#### GET `/api/`
+Root endpoint - API status
+```typescript
+Response: SuccessResponse<{
+  message: string
+  version: string
+  timestamp: string
+}>
+```
+
+### Authentication (🔧 Ready for Phase 2)
+
+#### POST `/auth/google` (Phase 2)
+Stubbed endpoint ready for OAuth2 implementation
 Initiate Google OAuth2 flow
 ```typescript
 Response: {
@@ -127,7 +192,7 @@ Response: {
 }
 ```
 
-### Email Sync
+### Email Sync (Phase 2 - Gmail Integration)
 
 #### POST `/sync/start`
 Start initial email sync
@@ -168,7 +233,8 @@ Response: {
 }
 ```
 
-### Analytics
+### Analytics (Phase 3 - Analytics Engine)
+**Database Schema Ready:** `email_analytics` table implemented
 
 #### GET `/analytics/overview`
 Get email analytics overview
@@ -262,7 +328,8 @@ Response: {
 }
 ```
 
-### Subscriptions
+### Subscriptions (Phase 4 - Subscription Detection)
+**Database Schema Ready:** `subscriptions` table implemented with ML confidence scoring
 
 #### GET `/subscriptions`
 List detected subscriptions
@@ -347,7 +414,8 @@ Response: {
 }
 ```
 
-### Search
+### Search (Phase 2-3 - Gmail Integration + Analytics)
+**Database Schema Ready:** Full-text search capabilities with `emails` table
 
 #### GET `/search/emails`
 Search emails
@@ -375,7 +443,8 @@ Response: {
 }
 ```
 
-### Gmail Filters
+### Gmail Filters (Phase 4 - Subscription Management)
+**Database Schema Ready:** `gmail_filters` table for tracking created filters
 
 #### POST `/filters/create`
 Create Gmail filter
